@@ -3,6 +3,12 @@ from sklearn.preprocessing import LabelEncoder
 import matplotlib.pyplot as plt
 import seaborn as sns
 import nltk
+from nltk.corpus import stopwords
+import string 
+from nltk.stem.porter import PorterStemmer 
+from wordcloud import WordCloud
+from collections import Counter
+from sklearn.feature_extraction.text import CountVectorizer
 
 df = pd.read_csv('ProjectFile/spam.csv',encoding='latin-1')
 print(df.head())
@@ -73,7 +79,7 @@ print(df['Target'].value_counts())
 plt.pie(df['Target'].value_counts(),labels=['Ham','Spam'],autopct='%0.2f%%',colors=['lightblue','lightcoral'])
 plt.title("Distribution of Ham vs Spam")
 plt.legend()
-# plt.show()
+# #plt.show()
 
 # pip install nltk
 # import nltk
@@ -154,10 +160,10 @@ axes[2].set_ylabel("Frequency")
 axes[2].legend()
 
 plt.tight_layout()
-plt.show()
+#plt.show()
 
 sns.pairplot(df,hue='Target')
-plt.show()
+#plt.show()
 
 
 # Corelation Matrix
@@ -166,4 +172,222 @@ plt.figure(figsize=(10,4))
 sns.heatmap(numeric_df.corr(),annot=True,cmap='coolwarm')
 # sesimic,bwr,PiYG,PrGn,RdBu
 plt.title('Correlation Heatmap (numerical Feature)')
-plt.show()
+#plt.show()
+
+
+# Data Preprocessing 
+
+
+def transform_text(text):
+    
+    # print()
+    # print(text)
+    
+    # Step 1 : LowerCase
+    text = text.lower()
+    # print(f"Lower Cased : {text}")
+    
+    # Step 2 : Tokenization 
+    # print()
+    text = nltk.word_tokenize(text)
+    # print(f"Tokenized : {text}")
+    
+    
+    #Step 3 : Removing Special Charcaters
+    # print()
+    y = []
+    for i in text :
+        if i.isalnum():
+            y.append(i)
+            # this will put special charters in y
+    # print(f"Alphanumeric Only : {y}")
+    
+    
+    # from nltk.corpus import stopwords
+    # nltk.download('stopwords')
+    # print(stopwords.words('english'))
+    # import string
+    # print(string.punctuation)
+    
+    # Removing Stopwords and punctuation
+    # print()
+    text = y[:] # cloning 
+    y.clear()
+    for i in text :
+        if i not in stopwords.words('english'):
+            y.append(i)
+    
+    # print(f"Without Stopwords : {y}")
+    
+    # Stemming
+    # from nltk.stem.porter import PorterStemmer
+    #print()
+    text = y[:]
+    ps = PorterStemmer()
+    y.clear()
+    for i in text :
+        y.append(ps.stem(i))
+        
+    return " ".join(y)
+    
+# output = transform_text("Hi Hello How Are You. @ ? ! / Raj Drives a Car . Mary loves eating Pizza.")
+# print(f"Final Output : {output}")
+
+# Trasformed Text Execution 
+df['Trasformed_Text']=df['Text'].apply(transform_text)
+print(df.describe())
+print(df.info())
+
+
+# pip install wordcloud
+# from wordcloud import WordCloud
+
+wc = WordCloud(width= 500, height=500, min_font_size=1, background_color='white')
+
+
+# Genrate Word Strings 
+spam_words = df[df['Target']==1]['Trasformed_Text'].str.cat(sep=" ")
+ham_words = df[df['Target']==0]['Trasformed_Text'].str.cat(sep=" ")
+
+# Genrate Word Clouds
+spam_wc = wc.generate(spam_words)
+ham_wc = wc.generate(ham_words)
+
+fig, axs = plt.subplots(1,2,figsize=(10,8))
+
+# Spam Word Cloud
+axs[0].imshow(spam_wc,interpolation='bilinear')
+axs[0].set_title('Spam Message Word Cloud')
+axs[0].axis('off')
+
+# Ham Word Cloud 
+ham_wc = WordCloud(width=500,
+                   height=500,
+                   min_font_size=10,
+                   background_color='white',
+                   colormap='plasma').generate(ham_words)
+
+axs[1].imshow(ham_wc,interpolation='bilinear')
+axs[1].set_title('Ham Message Word Cloud')
+axs[1].axis('off')
+
+plt.tight_layout()
+# plt.show()
+
+
+# Spam Corpus 
+spam_corpus = []
+for msg in df[df['Target']==1]['Trasformed_Text'].tolist():
+    for words in msg.split():
+        spam_corpus.append(words)
+        
+# print(spam_corpus)
+# print()
+# print(len(spam_corpus))
+
+
+# from collections import Counter
+# print()
+# print(Counter(spam_corpus).most_common(30))
+
+top_30_spam = Counter(spam_corpus).most_common(30)
+
+df_top_spam = pd.DataFrame(top_30_spam,columns=['Word','Frequency'])
+
+ham_corpus = []
+for msg in df[df['Target']==0]['Trasformed_Text'].tolist():
+    for words in msg.split():
+        ham_corpus.append(words)
+        
+top_30_ham = Counter(ham_corpus).most_common(30)
+
+df_top_ham = pd.DataFrame(top_30_ham,columns=['Word','Frequency'])
+
+
+# plot 
+plt.figure(figsize=(12,6))
+sns.barplot(x="Word",y='Frequency',data=df_top_spam)
+plt.xticks(rotation='vertical')
+plt.title("Top 30 Spam Words in Corpus")
+plt.tight_layout()
+# plt.show()
+
+
+fig ,axes = plt.subplots(1,2,figsize=(10,6),sharey=True)
+sns.barplot(x="Word",y='Frequency',data=df_top_spam,ax=axes[0],palette="magma")
+axes[0].set_title("Top 30 Spam Words in Corpus")
+axes[0].tick_params(axis='x',rotation=90)
+
+sns.barplot(x="Word",y='Frequency',data=df_top_ham,ax=axes[1],palette="viridis")
+axes[1].set_title("Top 30 Ham Words in Corpus")
+axes[1].tick_params(axis='x',rotation=90)
+
+plt.tight_layout()
+# plt.show()
+
+
+# Model Building
+
+# from sklearn.feature_extraction.text import CountVectorizer
+cv = CountVectorizer()
+x = cv.fit_transform(df['Trasformed_Text']).toarray()
+print()
+print(f"Feature Matrix : {x}")
+print()
+print(f"Shape : {x.shape}")
+
+# Target Values 
+print()
+y = df['Target'].values
+print(f"Target Labels : {y}")
+
+
+from sklearn.feature_extraction.text import TfidfTransformer
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.model_selection import train_test_split
+
+
+# Train - Test Splt 
+x_train,x_test,y_train,y_test = train_test_split(x,y,test_size=0.2,random_state=2)
+
+from sklearn.naive_bayes import GaussianNB,MultinomialNB,BernoulliNB
+
+# Models 
+gnb = GaussianNB()
+mnb = MultinomialNB()
+bnb = BernoulliNB()
+
+from sklearn.metrics import accuracy_score,confusion_matrix,precision_score
+# Train and Pedict
+
+# GaussianNB
+gnb.fit(x_train,y_train)
+y_pred1 = gnb.predict(x_test)
+print()
+print("GaussianNB")
+print(f"Accuracy Score : {accuracy_score(y_test,y_pred1)}")
+print(f"Confusion Matrix :\n {confusion_matrix(y_test,y_pred1)}")
+print(f"Precision Score : {precision_score(y_test,y_pred1)}")
+print()
+
+
+# MultinomialNB
+mnb.fit(x_train,y_train)
+y_pred2 = mnb.predict(x_test)
+print()
+print("MultinomialNB")
+print(f"Accuracy Score : {accuracy_score(y_test,y_pred2)}")
+print(f"Confusion Matrix :\n {confusion_matrix(y_test,y_pred2)}")
+print(f"Precision Score : {precision_score(y_test,y_pred2)}")
+print()
+
+
+# BernoulliNB
+bnb.fit(x_train,y_train)
+y_pred3 = bnb.predict(x_test)
+print()
+print("BernoulliNB")
+print(f"Accuracy Score : {accuracy_score(y_test,y_pred3)}")
+print(f"Confusion Matrix :\n {confusion_matrix(y_test,y_pred3)}")
+print(f"Precision Score : {precision_score(y_test,y_pred3)}")
+print()

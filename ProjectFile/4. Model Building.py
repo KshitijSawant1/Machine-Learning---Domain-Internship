@@ -12,6 +12,12 @@ from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import GaussianNB, MultinomialNB, BernoulliNB
 from sklearn.metrics import accuracy_score,confusion_matrix,precision_score
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import StackingClassifier
+from sklearn.feature_extraction.text import TfidfVectorizer
+import pickle
+import os
+
 
 # Ensure required NLTK downloads
 nltk.download('punkt')
@@ -188,126 +194,89 @@ print("Confusion Matrix:\n", confusion_matrix(y_test, y_pred3))
 print("Precision:", precision_score(y_test, y_pred3))
 print("\n")
 
+# Assuming df is your preprocessed dataframe with 'Transformed_Text' and 'Target'
 
-# from sklearn.feature_extraction.text import TfidfTransformer
+# TF-IDF Vectorization
+tfidf = TfidfVectorizer()
+X_tfidf = tfidf.fit_transform(df['Transformed_Text']).toarray()
+y = df['Target'].values
 
-from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
-from sklearn.model_selection import train_test_split
-from sklearn.naive_bayes import GaussianNB, MultinomialNB, BernoulliNB
-from sklearn.metrics import accuracy_score, confusion_matrix, precision_score
-
-# =============================
-# 📌 2. TF-IDF Transformation
-# =============================
-tfidf = TfidfTransformer()
-X_tfidf = tfidf.fit_transform(x).toarray()
-
+# Train-Test Split
 x_train, x_test, y_train, y_test = train_test_split(X_tfidf, y, test_size=0.2, random_state=2)
 
-print("\n🔍 TF-IDF + MultinomialNB")
-mnb.fit(x_train, y_train)
-y_pred_tfidf = mnb.predict(x_test)
-print("Accuracy:", accuracy_score(y_test, y_pred_tfidf))
-print("Confusion Matrix:\n", confusion_matrix(y_test, y_pred_tfidf))
-print("Precision:", precision_score(y_test, y_pred_tfidf))
+# Model 1: GaussianNB
+gnb = GaussianNB()
+gnb.fit(x_train, y_train)
+y_pred1 = gnb.predict(x_test)
 
-print("\nTF-IDF + BernoulliNB")
-bnb.fit(x_train, y_train)
-y_pred_tfidf_bnb = bnb.predict(x_test)
-print("Accuracy:", accuracy_score(y_test, y_pred_tfidf_bnb))
-print("Confusion Matrix:\n", confusion_matrix(y_test, y_pred_tfidf_bnb))
-print("Precision:", precision_score(y_test, y_pred_tfidf_bnb))
-
-
-# Choosing MNB with TFIDF
-
-from sklearn.linear_model import LogisticRegression
-from sklearn.svm import SVC
-from sklearn.naive_bayes import MultinomialNB
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier, BaggingClassifier, ExtraTreesClassifier, GradientBoostingClassifier
-from xgboost import XGBClassifier
-
-from sklearn.svm import SVC
-from sklearn.naive_bayes import MultinomialNB
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier, BaggingClassifier, ExtraTreesClassifier, GradientBoostingClassifier
-from sklearn.neighbors import KNeighborsClassifier
-from xgboost import XGBClassifier
-from sklearn.metrics import accuracy_score, precision_score
-from sklearn.model_selection import train_test_split
-import seaborn as sns
-import matplotlib.pyplot as plt
-import pandas as pd
-
-# Define all classifiers
-svc = SVC(kernel='sigmoid', gamma=1.0)
-knc = KNeighborsClassifier()
+# Model 2: MultinomialNB
 mnb = MultinomialNB()
-dtc = DecisionTreeClassifier(max_depth=5)
-lrc = LogisticRegression(solver='liblinear', penalty='l1')
-rfc = RandomForestClassifier(n_estimators=50, random_state=2)
-abc = AdaBoostClassifier(n_estimators=50, random_state=2)
-bc = BaggingClassifier(n_estimators=50, random_state=2)
-etc = ExtraTreesClassifier(n_estimators=50, random_state=2)
-gbdt = GradientBoostingClassifier(n_estimators=50, random_state=2)
-xgb = XGBClassifier(use_label_encoder=False, eval_metric='logloss')
+mnb.fit(x_train, y_train)
+y_pred2 = mnb.predict(x_test)
 
-clfs = {
-    'SVC': svc,
-    'KNC': knc,
-    'NB': mnb,
-    'DT': dtc,
-    'LR': lrc,
-    'RF': rfc,
-    'AdaBoost': abc,
-    'Bgc': bc,
-    'ETC': etc,
-    'GBDT': gbdt,
-    'xgb': xgb,
-}
+# Model 3: BernoulliNB
+bnb = BernoulliNB()
+bnb.fit(x_train, y_train)
+y_pred3 = bnb.predict(x_test)
 
-# Define training function
-def train_classifier(clf, X_train, y_train, X_test, y_test):
-    clf.fit(X_train, y_train)
-    y_pred = clf.predict(X_test)
-    accuracy = accuracy_score(y_test, y_pred)
-    precision = precision_score(y_test, y_pred)
-    return accuracy, precision
+# Print results
+print("\n🔍 TF-IDF + MultinomialNB")
+print("Accuracy:", accuracy_score(y_test, y_pred2))
+print("Confusion Matrix:\n", confusion_matrix(y_test, y_pred2))
+print("Precision:", precision_score(y_test, y_pred2))
 
-# Collect performance
-accuracy_scores = []
-precision_scores = []
+print("\n🔍 TF-IDF + BernoulliNB")
+print("Accuracy:", accuracy_score(y_test, y_pred3))
+print("Confusion Matrix:\n", confusion_matrix(y_test, y_pred3))
+print("Precision:", precision_score(y_test, y_pred3))
 
-for name, clf in clfs.items():
-    current_accuracy, current_precision = train_classifier(clf, x_train, y_train, x_test, y_test)
-    print(f"For {name} → Accuracy: {current_accuracy:.4f}, Precision: {current_precision:.4f}")
-    accuracy_scores.append(current_accuracy)
-    precision_scores.append(current_precision)
+# Stacking Classifier
+estimators = [
+    ('nb', MultinomialNB()),
+    ('lr', LogisticRegression(solver='liblinear'))
+]
+final = LogisticRegression()
+clf = StackingClassifier(estimators=estimators, final_estimator=final)
+clf.fit(x_train, y_train)
+y_pred = clf.predict(x_test)
 
-# Step 1: Create performance DataFrame (wide format)
+print("\n🔍 TF-IDF + StackingClassifier")
+print("Accuracy:", accuracy_score(y_test, y_pred))
+print("Precision:", precision_score(y_test, y_pred))
+
+# Comparison DataFrame
 performance_df = pd.DataFrame({
-    'Algorithm': list(clfs.keys()),
-    'Accuracy': accuracy_scores,
-    'Precision': precision_scores
+    'Algorithm': ['GaussianNB', 'MultinomialNB', 'BernoulliNB', 'StackingClassifier'],
+    'Accuracy': [accuracy_score(y_test, y_pred1),
+                 accuracy_score(y_test, y_pred2),
+                 accuracy_score(y_test, y_pred3),
+                 accuracy_score(y_test, y_pred)],
+    'Precision': [precision_score(y_test, y_pred1),
+                  precision_score(y_test, y_pred2),
+                  precision_score(y_test, y_pred3),
+                  precision_score(y_test, y_pred)]
 })
 
-# Step 2: Melt to long format for plotting
-performance_df1 = pd.melt(performance_df, id_vars="Algorithm", var_name="variable", value_name="value")
+performance_df1 = pd.melt(performance_df, id_vars="Algorithm", var_name="Metric", value_name="Score")
 
-# Step 3: Bar plot comparison
+# Plot
 sns.catplot(
     x='Algorithm',
-    y='value',
-    hue='variable',
+    y='Score',
+    hue='Metric',
     data=performance_df1,
     kind='bar',
     height=5
 )
-
+plt.xticks(rotation=45)
 plt.ylim(0.5, 1.0)
-plt.xticks(rotation='vertical')
 plt.title("Model Comparison - Accuracy vs Precision")
-plt.show()
+plt.tight_layout()
+# plt.show()
+
+# Save model and vectorizer
+os.makedirs("ProjectFile/models", exist_ok=True)
+pickle.dump(tfidf, open('ProjectFile/models/vectorizer.pkl', 'wb'))
+pickle.dump(clf, open('ProjectFile/models/model.pkl', 'wb'))
+
+print("Model and vectorizer saved successfully.")
