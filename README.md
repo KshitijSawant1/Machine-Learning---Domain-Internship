@@ -1,5 +1,6 @@
 
-#  Machine Learning – Domain Internship
+#  Machine Learning – Domain Internship [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 
 A structured learning-based repository containing a step-by-step, end-to-end walkthrough of the machine learning lifecycle—from Python fundamentals and data preprocessing to model training and deployment.
 
