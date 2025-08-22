@@ -14,6 +14,8 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import GaussianNB,MultinomialNB,BernoulliNB
 from sklearn.metrics import accuracy_score, precision_score,confusion_matrix
+import os 
+import pickle
 
 df = pd.read_csv("ProjectFile/spam.csv",encoding='latin-1')
 # print(df)
@@ -375,3 +377,103 @@ print(f'Confusion Matrix :\n {confusion_matrix(y_test,y_pred3)}')
 print(f'Accuracy Score : {accuracy_score(y_test,y_pred3)}')
 print(f'Precision Score : {precision_score(y_test,y_pred3)}')
 print()
+
+
+# Import all the models 
+from sklearn.naive_bayes import GaussianNB,MultinomialNB,BernoulliNB
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.ensemble import (RandomForestClassifier,
+                              AdaBoostClassifier,
+                              ExtraTreesClassifier,
+                              GradientBoostingClassifier,
+                              StackingClassifier)
+
+from sklearn.feature_extraction.text import TfidfTransformer
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+from sklearn.metrics import accuracy_score,precision_score,confusion_matrix
+
+tfidf = TfidfVectorizer()
+X = tfidf.fit_transform(df['Transformed_Text']).toarray()
+y = df['Target'].values
+x_train,x_test,y_train,y_test = train_test_split(X,y,test_size=0.2,random_state=2)
+
+models = {"GaussianNB":GaussianNB(),
+          "MultinomialNB":MultinomialNB(),
+          "BernoulliNB":BernoulliNB(),
+          "Logistic Regression":LogisticRegression(solver='liblinear'),
+          "Support Vector Classifier":SVC(),
+          "Decision Tree Classifier":DecisionTreeClassifier(),
+          "K Neighbors Classifier":KNeighborsClassifier(),
+          "Random Forest Classifier":RandomForestClassifier(n_estimators=100),
+          "Ada Boost Classifier":AdaBoostClassifier(n_estimators=50),
+          "Extra Trees Classifier":ExtraTreesClassifier(n_estimators=100),
+          "Gradient Boosting Classifier":GradientBoostingClassifier(),
+          }
+
+performance_data = []
+
+for name , model in models.items():
+    model.fit(x_train,y_train)
+    y_pred = model.predict(x_test)
+    acc = accuracy_score(y_test,y_pred)
+    prec = precision_score(y_test,y_pred)
+    confusion_mtx = confusion_matrix(y_test,y_pred)
+    print(f"\n {name}")
+    print(f"Accuracy Score : {acc}")
+    print(f"Precision Score : {prec}")
+    print(f"Confusion Matrix :\n {confusion_mtx}")
+    performance_data.append((name,acc,prec))
+    
+print()
+print(performance_data)    
+
+
+
+# Adding Stacking Classifier 
+stack = StackingClassifier(estimators=[('mnb',MultinomialNB()),
+                                       ('lr',LogisticRegression(solver='liblinear'))],
+                           final_estimator=LogisticRegression())
+
+stack.fit(x_train,y_train)
+y_pred_stack = stack.predict(x_test)
+acc_stack = accuracy_score(y_test,y_pred_stack)
+prec_stack = precision_score(y_test,y_pred_stack)
+confusion_mtx_stack = confusion_matrix(y_test,y_pred_stack)
+print(f"\n {name}")
+print(f"Accuracy Score : {acc_stack}")
+print(f"Precision Score : {prec_stack}")
+print(f"Confusion Matrix :\n {confusion_mtx_stack}")
+performance_data.append(('Stacking Classifier',acc_stack,prec_stack))
+print(performance_data) 
+
+performance_data = pd.DataFrame(performance_data,columns=['Algorithm','Accuracy','Precision'])
+performance_data_melted = pd.melt(performance_data,id_vars='Algorithm',
+                                   var_name = 'Metric',
+                                   value_name='Score')
+
+
+sns.catplot(x = 'Algorithm',
+            y = 'Score',
+            hue = 'Metric',
+            data = performance_data_melted,
+            kind = 'bar',
+            height = 6)
+
+plt.xticks(rotation=45,ha='right')
+plt.ylim(0.5,1.05)
+plt.title('Model Comparison - Accuracy v/s Precision')
+plt.tight_layout()
+plt.show()
+
+# import os 
+# import pickle
+
+os.makedirs("models2",exist_ok=True)
+pickle.dump(tfidf,open('models2/vectorizer.pkl','wb'))
+pickle.dump(stack,open('models2/model.pkl','wb'))
+
+print(f'Model installed Successfully')
